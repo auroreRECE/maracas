@@ -5,6 +5,8 @@ as.num <- function(x) { x <- as.numeric(as.character(x)) }
 
 change.res <- function(x, new.res) { new.res * round(x/new.res) }
 
+
+
 library(Rcpp)
 library(R.matlab)
 library(ggplot2)
