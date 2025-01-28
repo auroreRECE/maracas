@@ -39,8 +39,6 @@ vect[as.numeric(coco$symbol)] <- coco$corres
 
 list_camp_maracas = c('M7B', 'M7C', 'M7D')
 
-setwd('D:/maracas')
-
 ###################################################
 #################### lecture donnees #########################
 ###################################################
@@ -670,6 +668,69 @@ ggsave(filename ="D:/maracas/R_figures/boxplotSV.jpg",
        width = 4, height = 3, units = "in",dpi = 150,
        scale = 2, plot= aa)
 
+
+###################################################
+############## figures differences ################
+###################################################
+df38$lon2 <- change.res(df38$lon, 0.01)
+df38$lat2 <- change.res(df38$lat, 0.01)
+
+df38_2 <- df38 %>% 
+  dplyr::filter(moment %in% c("Day", "Night") &
+                  lon %between% c(167.8, 168.6) & 
+                  lat %between% c(-23.7, -22.7)  ) %>% 
+  dplyr::group_by( camp, lon2, lat2, moment, vertical_layer) %>% 
+  dplyr::summarise(sv_mea = mean(sv, na.rm = TRUE),
+                   sv_q50 = quantile(sv, probs = 0.5, na.rm = TRUE))
+df38_2 <- data.frame(df38_2)
+df38_2$nasc_mean <- df38_2$sv_mea * 4 * pi * 1852 * 1852 * 20
+df38_2$nasc_q50 <- df38_2$sv_q50 * 4 * pi * 1852 * 1852 * 20
+
+
+plpl = ggplot() + 
+  stat_contour(data = df_bathy,
+               aes(x = lon, y = lat, z = depth),
+               color="grey60", size=0.25) +
+  xlab('') + ylab('') + 
+  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
+                     limits = c(167.8, 168.6)) +
+  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
+                     limits = c(-23.7, -22.7)) +
+  coord_equal() + theme_minimal() +
+  geom_tile(data = df38_2,  aes(x = lon2, y = lat2, fill = nasc_mean)) +
+  facet_grid(  camp ~  vertical_layer +moment) + 
+  scale_fill_viridis_c(limits = c(0, 400))
+
+plpl
+
+df38_2_night_surf <- df38_2 %>% 
+  dplyr::filter(moment == 'Night' & vertical_layer == "(0,200]") %>% 
+  dplyr::mutate(nasc_surf_night = nasc_mean   ) %>% 
+  dplyr::select( camp, lon2,  lat2,nasc_surf_night )
+
+df38_2_day_prof <- df38_2 %>% 
+  dplyr::filter(moment == 'Day' & vertical_layer == "(200,800]") %>% 
+  dplyr::mutate(nasc_prof_day = nasc_mean   ) %>% 
+  dplyr::select( camp, lon2,  lat2,nasc_prof_day )
+
+df_test <- merge(df38_2_night_surf, df38_2_day_prof)
+df_test$diff <- df_test$nasc_surf_night  - df_test$nasc_prof_day
+
+
+plpl = ggplot() + 
+  stat_contour(data = df_bathy,
+               aes(x = lon, y = lat, z = depth),
+               color="grey60", size=0.25) +
+  xlab('') + ylab('') + 
+  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
+                     limits = c(167.8, 168.6)) +
+  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
+                     limits = c(-23.7, -22.7)) +
+  coord_equal() + theme_minimal() +
+  geom_tile(data = df_test,  aes(x = lon2, y = lat2, fill = diff)) +
+  facet_wrap( ~  camp) + 
+  scale_fill_distiller(type = "div", limits = c(-250, 250))
+plpl
 
 ###################################################
 #################### solene code #########################
