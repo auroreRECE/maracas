@@ -687,35 +687,24 @@ df38_2$nasc_mean <- df38_2$sv_mea * 4 * pi * 1852 * 1852 * 20
 df38_2$nasc_q50 <- df38_2$sv_q50 * 4 * pi * 1852 * 1852 * 20
 
 
-plpl = ggplot() + 
-  stat_contour(data = df_bathy,
-               aes(x = lon, y = lat, z = depth),
-               color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_tile(data = df38_2,  aes(x = lon2, y = lat2, fill = nasc_mean)) +
-  facet_grid(  camp ~  vertical_layer +moment) + 
-  scale_fill_viridis_c(limits = c(0, 400))
-
-plpl
-
 df38_2_night_surf <- df38_2 %>% 
   dplyr::filter(moment == 'Night' & vertical_layer == "(0,200]") %>% 
   dplyr::mutate(nasc_surf_night = nasc_mean   ) %>% 
   dplyr::select( camp, lon2,  lat2,nasc_surf_night )
 
-df38_2_day_prof <- df38_2 %>% 
-  dplyr::filter(moment == 'Day' & vertical_layer == "(200,800]") %>% 
-  dplyr::mutate(nasc_prof_day = nasc_mean   ) %>% 
-  dplyr::select( camp, lon2,  lat2,nasc_prof_day )
+df38_2_day_surf <- df38_2 %>% 
+  dplyr::filter(moment == 'Day' & vertical_layer == "(0,200]") %>% 
+  dplyr::mutate(nasc_surf_day = nasc_mean   ) %>% 
+  dplyr::select( camp, lon2,  lat2,nasc_surf_day )
 
-df_test <- merge(df38_2_night_surf, df38_2_day_prof)
-df_test$diff <- df_test$nasc_surf_night  - df_test$nasc_prof_day
+df_bloc_jour_surf <- merge(df38_2_night_surf, df38_2_day_surf)
+df_bloc_jour_surf$migr_prop <- (df_bloc_jour_surf$nasc_surf_night - df_bloc_jour_surf$nasc_surf_day)/
+  df_bloc_jour_surf$nasc_surf_night
+hist(df_bloc_jour_surf$migr_prop, 50, xlim = c(-2, 1))
+df_bloc_jour_surf$migr_prop <- ifelse(df_bloc_jour_surf$migr_prop < -1, -1,
+                                      df_bloc_jour_surf$migr_prop)
 
+### 
 
 plpl = ggplot() + 
   stat_contour(data = df_bathy,
@@ -727,10 +716,32 @@ plpl = ggplot() +
   scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
                      limits = c(-23.7, -22.7)) +
   coord_equal() + theme_minimal() +
-  geom_tile(data = df_test,  aes(x = lon2, y = lat2, fill = diff)) +
-  facet_wrap( ~  camp) + 
-  scale_fill_distiller(type = "div", limits = c(-250, 250))
+  geom_tile(data = df_bloc_jour_surf,  aes(x = lon2, y = lat2, fill = migr_prop)) +
+  facet_grid( ~  camp) + 
+  scale_fill_distiller(type = "div")
 plpl
+
+
+plpl2 = ggplot() + 
+  stat_contour(data = df_bathy,
+               aes(x = lon, y = lat, z = depth),
+               color="grey60", size=0.25) +
+  xlab('') + ylab('') + 
+  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
+                     limits = c(167.8, 168.6)) +
+  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
+                     limits = c(-23.7, -22.7)) +
+  coord_equal() + theme_minimal() +
+  geom_tile(data = df_bloc_jour_surf[df_bloc_jour_surf$migr_prop >= 0, ], 
+            aes(x = lon2, y = lat2, fill = migr_prop)) +
+  facet_grid( ~  camp) + 
+  scale_fill_viridis_b(n.breaks = 6)
+plpl2
+
+plpl3 <- ggarrange(plpl, plpl2, nrow = 2)
+ggsave(filename ="D:/maracas/R_figures/migrant_prop.jpg",
+       width = 3.8, height = 3, units = "in",dpi = 150,
+       scale = 2, plot= plpl3)
 
 ###################################################
 #################### solene code #########################
@@ -816,13 +827,30 @@ df38_bis <- df38_bis %>% dplyr::filter(moment %in% c('Day', 'Night'))
 df38_bis$nasc <- df38_bis$sv * 4 * pi * 1852 * 1852 * 20
 df38_bis <- df38_bis %>% dplyr::filter(nasc <= 400)
 
-g3_n <- ggplot(df38_bis[df38_bis$moment == 'Night', ],
-               aes(x = habitat, y = nasc, fill = habitat)) +
+
+
+df38_2 <- df38_bis %>% 
+  dplyr::filter(moment %in% c("Day", "Night") &
+                  lon %between% c(167.8, 168.6) & 
+                  lat %between% c(-23.7, -22.7)  ) %>% 
+  dplyr::group_by( camp, lon2, lat2, habitat, moment, vertical_layer) %>% 
+  dplyr::summarise(sv_mea = mean(sv, na.rm = TRUE),
+                   sv_q50 = quantile(sv, probs = 0.5, na.rm = TRUE))
+df38_2 <- data.frame(df38_2)
+df38_2$nasc_mean <- df38_2$sv_mea * 4 * pi * 1852 * 1852 * 20
+df38_2$nasc_q50 <- df38_2$sv_q50 * 4 * pi * 1852 * 1852 * 20
+
+
+
+
+
+g3_n <- ggplot(df38_2, aes(x = habitat, y = nasc_mean, fill = habitat)) +
   geom_point(aes(color = habitat),
              position = position_jitter(w = .1),
              alpha = 0.1, size = 0.01) +
   geom_boxplot(outlier.alpha = 0, col = "grey50", width = 0.2) +
-  ylim(0, 150) + coord_flip() +
+  ylim(0, 150) +
+  coord_flip() +
   geom_flat_violin(position = position_nudge(x = .1),
                    trim = TRUE, 
                    alpha = 0.7, 
@@ -836,36 +864,15 @@ g3_n <- ggplot(df38_bis[df38_bis$moment == 'Night', ],
                            panel.background = element_rect(color = 'black',
                                                            fill ='white'))
 
-g3_d <- ggplot(df38_bis[df38_bis$moment == 'Day', ],
-               aes(y = nasc, fill = habitat, x = habitat)) +
-  geom_point(aes(color = habitat),
-             position = position_jitter(w = .1),
-             alpha = 0.1, size = 0.01) +
-  geom_boxplot(outlier.alpha = 0, col = "grey50", width = 0.2) +
-  ylim(0, 50) + coord_flip() +
-  geom_flat_violin(position = position_nudge(x = .1),
-                   trim = TRUE, 
-                   alpha = 0.7, 
-                   scale = "width",
-                   color = NA) +
-  facet_grid(vertical_layer ~ moment, scales = 'free') + 
-  scale_fill_canva(palette = "Pool party", name = "Habitat") + 
-  scale_color_canva(palette = "Pool party", name = "Habitat") + 
-  theme_minimal()  + theme(axis.text.y  = element_blank(),
-                           axis.title.y  = element_blank(),
-                           panel.background = element_rect(color = 'black',
-                                                           fill ='white'))
-
-a = ggarrange(g3_d,g3_n, common.legend = TRUE)
-a
 ggsave(filename ="D:/maracas/R_figures/boxplot_seamounts.jpg",
        width = 3, height = 1.8, 
-       scale = 3, plot= a)
+       scale = 3, plot= g3_n)
 
 
 
-m <- lm(nasc ~ camp  + moment:habitat:vertical_layer, 
-        df38_bis)
+m <- glm(nasc_mean ~ camp  + moment*habitat*vertical_layer, 
+        df38_2, family = Gamma(link = "log"))
+
 summary(m)
 
 
