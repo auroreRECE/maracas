@@ -845,7 +845,7 @@ plpl = ggplot() +
   coord_equal() + theme_minimal() +
   geom_tile(data = df_bloc_jour_surf,  aes(x = lon2, y = lat2, fill = migr_prop)) +
   facet_grid( ~  camp) + 
-  scale_fill_distiller(type = "div")
+  scale_fill_distiller(type = "div", name = 'Proportion\nof migrant')
 plpl
 
 
@@ -862,10 +862,10 @@ plpl2 = ggplot() +
   geom_tile(data = df_bloc_jour_surf[df_bloc_jour_surf$migr_prop >= 0, ], 
             aes(x = lon2, y = lat2, fill = migr_prop)) +
   facet_grid( ~  camp) + 
-  scale_fill_viridis_b(n.breaks = 6)
+  scale_fill_viridis_b(n.breaks = 6, name = 'Proportion\nof migrant\n(only positive)')
 plpl2
 
 plpl3 <- ggarrange(plpl, plpl2, nrow = 2)
 ggsave(filename ="D:/maracas/R_figures/migrant_prop.jpg",
-       width = 3.8, height = 3, units = "in",dpi = 150,
-       scale = 2, plot= plpl3)
+       width = 3, height = 2.5, units = "in",dpi = 150,
+       scale = 2.5, plot= plpl3)
