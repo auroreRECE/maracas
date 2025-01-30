@@ -503,7 +503,13 @@ plN_1 = ggplot() +
                              df38_2$vertical_layer == "(0,200]", ], 
              aes(x = lon2, y = lat2, fill = nasc_q50)) +
   facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 200), na.value = "#FDE725FF")
+  guides(fill = guide_colourbar(position = "inside")  ) +
+  scale_fill_viridis_c(limits = c(0, 200), na.value = "#FDE725FF",
+                       name = '') + 
+  theme(legend.position.inside = c(0.85,0.25),
+        legend.background = element_rect(fill = "white", color = NA),
+        legend.title = element_blank())
+
 plN_2 = ggplot() + 
   stat_contour(data = df_bathy,
                aes(x = lon, y = lat, z = depth),
@@ -518,7 +524,12 @@ plN_2 = ggplot() +
                              df38_2$vertical_layer == "(0,200]", ], 
              aes(x = lon2, y = lat2, fill = nasc_q50)) +
   facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 40), na.value = "#FDE725FF")
+  guides(fill = guide_colourbar(position = "inside")  ) +
+  scale_fill_viridis_c(limits = c(0, 40), na.value = "#FDE725FF",
+                       name = '')+ 
+  theme(legend.position.inside = c(0.85,0.25),
+        legend.background = element_rect(fill = "white", color = NA),
+        legend.title = element_blank())
 plN_3 = ggplot() + 
   stat_contour(data = df_bathy,
                aes(x = lon, y = lat, z = depth),
@@ -533,7 +544,12 @@ plN_3 = ggplot() +
                              df38_2$vertical_layer == "(200,800]", ], 
              aes(x = lon2, y = lat2, fill = nasc_q50)) +
   facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 100), na.value = "#FDE725FF")
+  guides(fill = guide_colourbar(position = "inside")  ) +
+  scale_fill_viridis_c(limits = c(0, 100), na.value = "#FDE725FF",
+                       name = '')+ 
+  theme(legend.position.inside = c(0.85,0.25),
+        legend.background = element_rect(fill = "white", color = NA),
+        legend.title = element_blank())
 plN_4 = ggplot() + 
   stat_contour(data = df_bathy,
                aes(x = lon, y = lat, z = depth),
@@ -548,98 +564,20 @@ plN_4 = ggplot() +
                              df38_2$vertical_layer == "(200,800]", ], 
              aes(x = lon2, y = lat2, fill = nasc_q50)) +
   facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 70), na.value = "#FDE725FF")
+  guides(fill = guide_colourbar(position = "inside")  ) +
+  scale_fill_viridis_c(limits = c(0, 70), na.value = "#FDE725FF",
+                       name = '') + 
+  theme(legend.position.inside = c(0.85,0.25),
+        legend.background = element_rect(fill = "white", color = NA),
+        legend.title = element_blank())
 
 
 
-ii = ggarrange(plN_1, plN_2, plN_3, plN_4, ncol = 2, nrow = 2)
+ii = ggarrange(plN_2, plN_1, plN_4, plN_3,ncol = 2, nrow = 2)
 
 ggsave(filename ="D:/maracas/R_figures/quantile_nasc_couches_verticales_large.jpg",
-       width = 4, height = 3, 
-       scale = 3, plot= ii)
-
-
-#####################################################################
-df38$lon2 <- change.res(df38$lon, 0.01)
-df38$lat2 <- change.res(df38$lat, 0.01)
-
-df38_2 <- df38 %>% 
-  dplyr::filter(moment %in% c("Day", "Night") &
-                  lon %between% c(167.8, 168.6) & 
-                  lat %between% c(-23.7, -22.7)  ) %>% 
-  dplyr::group_by( lon2, lat2, moment, vertical_layer) %>% 
-  dplyr::summarise(sv_mea = mean(sv, na.rm = TRUE),
-                   sv_q50 = quantile(sv, probs = 0.5, na.rm = TRUE))
-df38_2 <- data.frame(df38_2)
-
-plN_1 = ggplot() + 
-  stat_contour(data = df_bathy,
-               aes(x = lon, y = lat, z = depth),
-               color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_tile(data = df38_2[df38_2$moment == "Night" &
-                            df38_2$vertical_layer == "(0,200]", ], 
-            aes(x = lon2, y = lat2, fill = sv_q50)) +
-  facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 2.5e-7))
-plN_2 = ggplot() + 
-  stat_contour(data = df_bathy,
-               aes(x = lon, y = lat, z = depth),
-               color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_tile(data = df38_2[df38_2$moment == "Day" &
-                            df38_2$vertical_layer == "(0,200]", ], 
-            aes(x = lon2, y = lat2, fill = sv_q50)) +
-  facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 5e-8))
-plN_3 = ggplot() + 
-  stat_contour(data = df_bathy,
-               aes(x = lon, y = lat, z = depth),
-               color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_tile(data = df38_2[df38_2$moment == "Night" &
-                            df38_2$vertical_layer == "(200,800]", ], 
-            aes(x = lon2, y = lat2, fill = sv_q50)) +
-  facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 1.5e-7))
-plN_4 = ggplot() + 
-  stat_contour(data = df_bathy,
-               aes(x = lon, y = lat, z = depth),
-               color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_tile(data = df38_2[df38_2$moment == "Day" &
-                            df38_2$vertical_layer == "(200,800]", ], 
-            aes(x = lon2, y = lat2, fill = sv_q50)) +
-  facet_grid( vertical_layer ~ moment) + 
-  scale_fill_viridis_c(limits = c(0, 6e-8))
-
-
-
-ii = ggarrange(plN_1, plN_2, plN_3, plN_4, ncol = 2, nrow = 2)
-
-ggsave(filename ="D:/maracas/R_figures/couches_moyennes_large_MEAN.jpg",
-       width = 4, height = 3, 
-       scale = 3, plot= ii)
+       width = 2.7, height = 3, 
+       scale = 2.5, plot= ii)
 
 
 ###################################################
@@ -669,79 +607,6 @@ ggsave(filename ="D:/maracas/R_figures/boxplotSV.jpg",
        scale = 2, plot= aa)
 
 
-###################################################
-############## figures differences ################
-###################################################
-df38$lon2 <- change.res(df38$lon, 0.01)
-df38$lat2 <- change.res(df38$lat, 0.01)
-
-df38_2 <- df38 %>% 
-  dplyr::filter(moment %in% c("Day", "Night") &
-                  lon %between% c(167.8, 168.6) & 
-                  lat %between% c(-23.7, -22.7)  ) %>% 
-  dplyr::group_by( camp, lon2, lat2, moment, vertical_layer) %>% 
-  dplyr::summarise(sv_mea = mean(sv, na.rm = TRUE),
-                   sv_q50 = quantile(sv, probs = 0.5, na.rm = TRUE))
-df38_2 <- data.frame(df38_2)
-df38_2$nasc_mean <- df38_2$sv_mea * 4 * pi * 1852 * 1852 * 20
-df38_2$nasc_q50 <- df38_2$sv_q50 * 4 * pi * 1852 * 1852 * 20
-
-
-df38_2_night_surf <- df38_2 %>% 
-  dplyr::filter(moment == 'Night' & vertical_layer == "(0,200]") %>% 
-  dplyr::mutate(nasc_surf_night = nasc_mean   ) %>% 
-  dplyr::select( camp, lon2,  lat2,nasc_surf_night )
-
-df38_2_day_surf <- df38_2 %>% 
-  dplyr::filter(moment == 'Day' & vertical_layer == "(0,200]") %>% 
-  dplyr::mutate(nasc_surf_day = nasc_mean   ) %>% 
-  dplyr::select( camp, lon2,  lat2,nasc_surf_day )
-
-df_bloc_jour_surf <- merge(df38_2_night_surf, df38_2_day_surf)
-df_bloc_jour_surf$migr_prop <- (df_bloc_jour_surf$nasc_surf_night - df_bloc_jour_surf$nasc_surf_day)/
-  df_bloc_jour_surf$nasc_surf_night
-hist(df_bloc_jour_surf$migr_prop, 50, xlim = c(-2, 1))
-df_bloc_jour_surf$migr_prop <- ifelse(df_bloc_jour_surf$migr_prop < -1, -1,
-                                      df_bloc_jour_surf$migr_prop)
-
-### 
-
-plpl = ggplot() + 
-  stat_contour(data = df_bathy,
-               aes(x = lon, y = lat, z = depth),
-               color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_tile(data = df_bloc_jour_surf,  aes(x = lon2, y = lat2, fill = migr_prop)) +
-  facet_grid( ~  camp) + 
-  scale_fill_distiller(type = "div")
-plpl
-
-
-plpl2 = ggplot() + 
-  stat_contour(data = df_bathy,
-               aes(x = lon, y = lat, z = depth),
-               color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_tile(data = df_bloc_jour_surf[df_bloc_jour_surf$migr_prop >= 0, ], 
-            aes(x = lon2, y = lat2, fill = migr_prop)) +
-  facet_grid( ~  camp) + 
-  scale_fill_viridis_b(n.breaks = 6)
-plpl2
-
-plpl3 <- ggarrange(plpl, plpl2, nrow = 2)
-ggsave(filename ="D:/maracas/R_figures/migrant_prop.jpg",
-       width = 3.8, height = 3, units = "in",dpi = 150,
-       scale = 2, plot= plpl3)
 
 ###################################################
 #################### solene code #########################
@@ -842,14 +707,15 @@ df38_2$nasc_q50 <- df38_2$sv_q50 * 4 * pi * 1852 * 1852 * 20
 
 
 
-
-
+levels(df38_2$moment)
+df38_2$moment <- factor(df38_2$moment, exclude = TRUE,
+                        levels = c('Day', 'Night'))
 g3_n <- ggplot(df38_2, aes(x = habitat, y = nasc_mean, fill = habitat)) +
   geom_point(aes(color = habitat),
              position = position_jitter(w = .1),
-             alpha = 0.1, size = 0.01) +
+             alpha = 0.1, size = 0.5) +
   geom_boxplot(outlier.alpha = 0, col = "grey50", width = 0.2) +
-  ylim(0, 150) +
+  ylim(0, 150) + ylab("NASC") +
   coord_flip() +
   geom_flat_violin(position = position_nudge(x = .1),
                    trim = TRUE, 
@@ -866,45 +732,17 @@ g3_n <- ggplot(df38_2, aes(x = habitat, y = nasc_mean, fill = habitat)) +
 
 ggsave(filename ="D:/maracas/R_figures/boxplot_seamounts.jpg",
        width = 3, height = 1.8, 
-       scale = 3, plot= g3_n)
+       scale = 2.5, plot= g3_n)
 
 
 
-m <- glm(nasc_mean ~ camp  + moment*habitat*vertical_layer, 
-        df38_2, family = Gamma(link = "log"))
+m <- glm(nasc_mean ~ camp  + moment : vertical_layer +
+           moment : vertical_layer : habitat, 
+       data =  df38_2, family = Gamma(link = "log"))
 
 summary(m)
-
-
-
-df38_bis$lon2 <- change.res(df38_bis$lon, 0.01)
-df38_bis$lat2 <- change.res(df38_bis$lat, 0.01)
-
-df38_bis2 <- df38_bis %>% 
-  dplyr::group_by( lon2, lat2, moment, depth_bin, camp, habitat,vertical_layer ) %>% 
-  dplyr::summarise(sv_mea = mean(sv, na.rm = TRUE),
-                   sv_q50 = quantile(sv, probs = 0.5, na.rm = TRUE))
-df38_bis2$nasc <- df38_bis2$sv_mea * 4 * pi * 1852 * 1852 * 20
-
-
-m <- glm(nasc ~ camp  + moment:vertical_layer*habitat, 
-         df38_bis2,
-        family = 'Gamma')
-summary(m)
-
-
 
 #####################################################################
-
-
-# g1 <- ggplot(df38_bis, aes(x = 1, y = Sv, fill = habitat)) +
-#   geom_boxplot(outlier.alpha = 0, col = "lightgrey") +
-#   facet_grid( moment ~ vertical_layer, scales = 'free') +ylim(-100, -60) +
-#   scale_fill_canva(palette = "Pool party", name = "Habitat") + 
-#   theme_minimal() 
-
-
-
 
 df38_bis <- merge(df38, df_try, by = c("lon", "lat", "date_char"))
 df38_bis <- df38_bis %>% dplyr::filter(moment %in% c('Day', 'Night'))
@@ -958,3 +796,76 @@ ggsave(filename ="D:/maracas/R_figures/boxplot_seamounts_Sv.jpg",
        scale = 3, plot= a)
 
 
+###################################################
+############## figures differences ################
+###################################################
+df38$lon2 <- change.res(df38$lon, 0.01)
+df38$lat2 <- change.res(df38$lat, 0.01)
+
+df38_2 <- df38 %>% 
+  dplyr::filter(moment %in% c("Day", "Night") &
+                  lon %between% c(167.8, 168.6) & 
+                  lat %between% c(-23.7, -22.7)  ) %>% 
+  dplyr::group_by( camp, lon2, lat2, moment, vertical_layer) %>% 
+  dplyr::summarise(sv_mea = mean(sv, na.rm = TRUE),
+                   sv_q50 = quantile(sv, probs = 0.5, na.rm = TRUE))
+df38_2 <- data.frame(df38_2)
+df38_2$nasc_mean <- df38_2$sv_mea * 4 * pi * 1852 * 1852 * 20
+df38_2$nasc_q50 <- df38_2$sv_q50 * 4 * pi * 1852 * 1852 * 20
+
+
+df38_2_night_surf <- df38_2 %>% 
+  dplyr::filter(moment == 'Night' & vertical_layer == "(0,200]") %>% 
+  dplyr::mutate(nasc_surf_night = nasc_mean   ) %>% 
+  dplyr::select( camp, lon2,  lat2,nasc_surf_night )
+
+df38_2_day_surf <- df38_2 %>% 
+  dplyr::filter(moment == 'Day' & vertical_layer == "(0,200]") %>% 
+  dplyr::mutate(nasc_surf_day = nasc_mean   ) %>% 
+  dplyr::select( camp, lon2,  lat2,nasc_surf_day )
+
+df_bloc_jour_surf <- merge(df38_2_night_surf, df38_2_day_surf)
+df_bloc_jour_surf$migr_prop <- (df_bloc_jour_surf$nasc_surf_night - df_bloc_jour_surf$nasc_surf_day)/
+  df_bloc_jour_surf$nasc_surf_night
+hist(df_bloc_jour_surf$migr_prop, 50, xlim = c(-2, 1))
+df_bloc_jour_surf$migr_prop <- ifelse(df_bloc_jour_surf$migr_prop < -1, -1,
+                                      df_bloc_jour_surf$migr_prop)
+
+### 
+
+plpl = ggplot() + 
+  stat_contour(data = df_bathy,
+               aes(x = lon, y = lat, z = depth),
+               color="grey60", size=0.25) +
+  xlab('') + ylab('') + 
+  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
+                     limits = c(167.8, 168.6)) +
+  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
+                     limits = c(-23.7, -22.7)) +
+  coord_equal() + theme_minimal() +
+  geom_tile(data = df_bloc_jour_surf,  aes(x = lon2, y = lat2, fill = migr_prop)) +
+  facet_grid( ~  camp) + 
+  scale_fill_distiller(type = "div")
+plpl
+
+
+plpl2 = ggplot() + 
+  stat_contour(data = df_bathy,
+               aes(x = lon, y = lat, z = depth),
+               color="grey60", size=0.25) +
+  xlab('') + ylab('') + 
+  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
+                     limits = c(167.8, 168.6)) +
+  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
+                     limits = c(-23.7, -22.7)) +
+  coord_equal() + theme_minimal() +
+  geom_tile(data = df_bloc_jour_surf[df_bloc_jour_surf$migr_prop >= 0, ], 
+            aes(x = lon2, y = lat2, fill = migr_prop)) +
+  facet_grid( ~  camp) + 
+  scale_fill_viridis_b(n.breaks = 6)
+plpl2
+
+plpl3 <- ggarrange(plpl, plpl2, nrow = 2)
+ggsave(filename ="D:/maracas/R_figures/migrant_prop.jpg",
+       width = 3.8, height = 3, units = "in",dpi = 150,
+       scale = 2, plot= plpl3)
