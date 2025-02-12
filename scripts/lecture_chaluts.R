@@ -30,6 +30,10 @@ library(PupillometryR)
 
 library(sf)
 library("readxl")
+library(ggrepel)
+
+library(FactoMineR)
+
 
 coco <- read.csv("C:/aurore/eddy/data_acoustic/correspondance.csv", sep = ";")
 vect <- rep("NA", 58)
@@ -209,24 +213,77 @@ ggsave(filename ="D:/maracas/R_figures/N_species_chaluts_bathy.jpg",
        scale = 3, plot= pl_R)
 
 
+
+
+##### distance aux monts sous marins 
+
+load("D:/maracas/data_maracas/env_stack.RData")
+
+df_chal_sf <- st_as_sf(df_all_richesse, coords = c("Lon_SE", "Lat_SE"), 
+                       crs = 4326)
+
+
+dist_star <- st_as_stars(env_stack$DIS_SUMMIT)
+dist_star <- st_transform(dist_star, crs = 4326) # project to same crs
+
+i <- st_extract(dist_star, df_chal_sf)
+df_all_richesse$dist_summ <- i$DIS_SUMMIT
+
+ggplot() +  
+  stat_contour(data = df_bathy,
+               aes(x = lon, y = lat, z = depth), color="grey60", size=0.25) +
+  xlab('') + ylab('') + 
+  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
+                     limits = c(167.8, 168.6)) +
+  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
+                     limits = c(-23.7, -22.7)) +
+  coord_equal() + theme_minimal() +
+  geom_point(data = df_all_richesse, aes(x = Lon_SE, y = Lat_SE,
+                                         color = dist_summ/1000  ),
+             size = 2) + scale_color_viridis_c()
+
+
 a = ggplot(df_all_richesse, aes(x = observed_depth_avg, y = n_sp)) + geom_point() +
-  geom_smooth() + xlab("Trawling depth (m)") + ylab("Number of species") + 
+  geom_smooth(method = 'lm') + xlab("Trawling depth (m)") + ylab("Number of species") + 
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'grey90')) 
+a
+lm_trawl_depth <- lm(data = df_all_richesse,
+                     n_sp ~ observed_depth_avg  + observed_depth_avg^2)
+df_all_richesse$residuals <- residuals(lm_trawl_depth)
+ggplot(df_all_richesse, aes(x = observed_depth_avg, y = residuals)) + 
+  geom_point() +
+  geom_smooth(method = 'lm') + xlab("Trawling depth (m)") + ylab("Number of species") + 
   theme_minimal() +
   theme(panel.background = element_rect(fill = 'white', color = 'black'),
         panel.grid.major = element_line(color = 'grey90')) 
 
-b = ggplot(df_all_richesse, aes(x = -bathy, y = n_sp)) + geom_point() +
+
+b = ggplot(df_all_richesse, aes(x = -bathy, y = residuals)) + geom_point() +
   geom_smooth() + xlab("Bathymetry (m)") + ylab("Number of species") + 
   theme_minimal() +
   theme(panel.background = element_rect(fill = 'white', color = 'black'),
         panel.grid.major = element_line(color = 'grey90')) 
 
-c = ggarrange(a,b)
-c
+c = ggplot(df_all_richesse, aes(x = dist_summ/1000, y = residuals)) + geom_point() +
+  geom_smooth() + xlab("Distance to summit (km)") + ylab("Number of species") + 
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'grey90')) 
+
+d = ggarrange(b, c, nrow = 2)
+d
 ggsave(filename ="D:/maracas/R_figures/chaluts_relations_bathy_depth.jpg",
        width = 3, height = 1, 
        scale = 3, plot= c)
 
+df_all_richesse$bathy <- -df_all_richesse$bathy
+df_all_richesse$dist_summ <- df_all_richesse$dist_summ/1000
+
+lm_trawl_depth <- lm(data = df_all_richesse,
+                     residuals ~ bathy  + dist_summ)
+summary(lm_trawl_depth)
 
 ##### classif 
 df_all <- df_all[df_all$scientific_name != "Pyrosoma_atlanticum", ]
@@ -239,6 +296,24 @@ dim(trawl_sp_matrice)
 library(vegan)
 trawl_sp_matrice_bray <- vegan::vegdist(trawl_sp_matrice, method="bray")
 
+
+########### try hellinger pca 
+trawl_sp_matrice_hell <- decostand(trawl_sp_matrice, method = 'hellinger')
+
+res_acp_taxo <- PCA(trawl_sp_matrice_hell, scale.unit = FALSE, 
+                    graph = FALSE)
+
+df_pca <- as.data.frame( res_acp_taxo$ind$coord)
+df_pca$set_no <- rownames(df_pca)
+df_pca <- merge(df_all_richesse, df_pca)
+
+ggplot(df_pca, aes(x = Dim.1, y = Dim.2, color = observed_depth_avg)) + 
+  geom_hline(yintercept = 0, color = 'grey70') + 
+  geom_vline(xintercept = 0, color = 'grey70') +
+  geom_point() + 
+  ylab("PC2 (12%)") +  xlab("PC1 (21%)") + theme_classic()   +
+  theme(panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'grey90')) 
 
 ############ pcoa  
 
@@ -267,13 +342,29 @@ ggplot(df_pcoa, aes(x = Axis.1, y = Axis.2, color = observed_depth_avg)) +
 library(NbClust)
 NbClust(pcoa_bray$vectors[, 1:5], method = 'complete', index = 'all')$Best.nc
 
-hclust_avg <- hclust(trawl_sp_matrice_bray, method = 'average')
+
+############ 
+hclust_avg <- hclust((trawl_sp_matrice_hell), method = 'average')
 plot(hclust_avg)
 cut_avg <- cutree(hclust_avg, k = 6)
 df_clus <- as.data.frame(cut_avg)
 df_clus$set_no <- rownames(df_clus)
 
+hclust_avg <- kmeans((res_acp_taxo$ind$coord), 6)
+df_clus <- as.data.frame(hclust_avg$cluster)
+names(df_clus) <- 'clus'
+df_clus$set_no <- rownames(df_clus)
+
+
 df_clus <- merge(df_clus, df_pcoa)
+ggplot(df_clus, aes(x = Axis.1, y = Axis.3, color = as.factor(clus) )) + 
+  geom_hline(yintercept = 0, color = 'grey70') + 
+  geom_vline(xintercept = 0, color = 'grey70') +
+  geom_point() + 
+  ylab("PC2 (12%)") +  xlab("PC1 (21%)") + theme_classic()   +
+  theme(panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'grey90')) 
+
 
 pl_R <- ggplot() +  stat_contour(data = df_bathy,
                          aes(x = lon, y = lat, z = depth), color="grey60", size=0.25) +
@@ -283,7 +374,7 @@ pl_R <- ggplot() +  stat_contour(data = df_bathy,
   scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
                      limits = c(-23.7, -22.7)) +
   coord_equal() + theme_minimal() +
-  geom_point(data = df_clus, aes(x = Lon_SE, y = Lat_SE, color = as.factor(cut_avg)   ),
+  geom_point(data = df_clus, aes(x = Lon_SE, y = Lat_SE, color = as.factor(clus)   ),
              size = 2) +
   facet_grid( vertical_layer ~ day_night_id) 
 
