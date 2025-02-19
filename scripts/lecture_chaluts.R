@@ -33,7 +33,8 @@ library("readxl")
 library(ggrepel)
 
 library(FactoMineR)
-
+library(statmod)
+library(vegan)
 
 coco <- read.csv("C:/aurore/eddy/data_acoustic/correspondance.csv", sep = ";")
 vect <- rep("NA", 58)
@@ -43,6 +44,8 @@ list_camp_maracas = c('M7B', 'M7C', 'M7D')
 
 setwd('D:/maracas')
 rotate <- function(x) t(apply(x, 2, rev))
+
+`%ni%` = Negate(`%in%`)
 
 ###################################################
 
@@ -243,47 +246,73 @@ ggplot() +
              size = 2) + scale_color_viridis_c()
 
 
+
+lm_trawl_depth_quasi <- glm(data = df_all_richesse,
+                     n_sp ~ observed_depth_avg,
+                     family = quasipoisson)
+lm_trawl_depth_pois <- glm(data = df_all_richesse,
+                            n_sp ~ observed_depth_avg,
+                            family = poisson)
+null.model <- glm(n_sp ~ 1, data = df_all_richesse, family = quasipoisson)
+anova(null.model, lm_trawl_depth_quasi,lm_trawl_depth_pois, test = "Chisq")
+
+df_newdata <- data.frame(observed_depth_avg = seq(min(df_all_richesse$observed_depth_avg),
+                                                  max(df_all_richesse$observed_depth_avg), 50))
+df_newdata$predict <- predict(lm_trawl_depth_quasi, newdata = df_newdata, "response")
+df_newdata$predict_se <- predict(lm_trawl_depth_quasi, newdata = df_newdata, "response",  se.fit = TRUE)$se.fit
+
+
+df_all_richesse$residuals <- qresid(lm_trawl_depth_quasi)
+
+hist(df_all_richesse$residuals )
+summary(lm_trawl_depth_quasi)
+# plot(lm_trawl_depth)
+
+df_all_richesse$dist_summ2 <- df_all_richesse$dist_summ/1000
+dim(df_all_richesse)
+lm_trawl_dist <- glm(data = df_all_richesse,
+                     residuals ~ dist_summ2,
+                     family = gaussian)
+summary(lm_trawl_dist)
+df_newdata2 <- data.frame(dist_summ2 = seq(min(df_all_richesse$dist_summ2),
+                                                  max(df_all_richesse$dist_summ2), 
+                                           length.out = 50))
+df_newdata2$predict <- predict(lm_trawl_dist, newdata = df_newdata2, "response")
+df_newdata2$predict_se <- predict(lm_trawl_dist, newdata = df_newdata2, "response",  se.fit = TRUE)$se.fit
+
+
 a = ggplot(df_all_richesse, aes(x = observed_depth_avg, y = n_sp)) + geom_point() +
-  geom_smooth(method = 'lm') + xlab("Trawling depth (m)") + ylab("Number of species") + 
+  xlab("Trawling depth (m)") + ylab("Number of species") + 
   theme_minimal() +
+  geom_ribbon(data = df_newdata, aes(x = observed_depth_avg, y = predict, 
+                                     ymin = predict - predict_se,
+                                     ymax = predict + predict_se), fill = "grey90", color = NA, alpha = 0.5) +
+  geom_line(data = df_newdata, aes(x = observed_depth_avg, y = predict), color = "darkblue") +
+  
   theme(panel.background = element_rect(fill = 'white', color = 'black'),
         panel.grid.major = element_line(color = 'grey90')) 
 a
-lm_trawl_depth <- lm(data = df_all_richesse,
-                     n_sp ~ observed_depth_avg  + observed_depth_avg^2)
-df_all_richesse$residuals <- residuals(lm_trawl_depth)
-ggplot(df_all_richesse, aes(x = observed_depth_avg, y = residuals)) + 
-  geom_point() +
-  geom_smooth(method = 'lm') + xlab("Trawling depth (m)") + ylab("Number of species") + 
+
+b = ggplot(df_all_richesse, aes(x = dist_summ2, y = residuals)) + geom_point() +
+  xlab("Distance to summit (km)") + ylab("Quantile residuals") + 
   theme_minimal() +
+  geom_ribbon(data = df_newdata2, aes(x = dist_summ2, y = predict, 
+                                      ymin = predict - predict_se,
+                                      ymax = predict + predict_se), fill = "grey90", color = NA, alpha = 0.5) +
+  geom_line(data = df_newdata2, aes(x = dist_summ2, y = predict), color = "darkblue") +
+  
   theme(panel.background = element_rect(fill = 'white', color = 'black'),
         panel.grid.major = element_line(color = 'grey90')) 
+b
 
 
-b = ggplot(df_all_richesse, aes(x = -bathy, y = residuals)) + geom_point() +
-  geom_smooth() + xlab("Bathymetry (m)") + ylab("Number of species") + 
-  theme_minimal() +
-  theme(panel.background = element_rect(fill = 'white', color = 'black'),
-        panel.grid.major = element_line(color = 'grey90')) 
 
-c = ggplot(df_all_richesse, aes(x = dist_summ/1000, y = residuals)) + geom_point() +
-  geom_smooth() + xlab("Distance to summit (km)") + ylab("Number of species") + 
-  theme_minimal() +
-  theme(panel.background = element_rect(fill = 'white', color = 'black'),
-        panel.grid.major = element_line(color = 'grey90')) 
-
-d = ggarrange(b, c, nrow = 2)
+d = ggarrange(a, b, nrow = 2)
 d
-ggsave(filename ="D:/maracas/R_figures/chaluts_relations_bathy_depth.jpg",
-       width = 3, height = 1, 
-       scale = 3, plot= c)
+ggsave(filename ="D:/maracas/R_figures/chaluts_relations_bathy_distance_summit.jpg",
+       width = 2, height = 2, 
+       scale = 3, plot= d)
 
-df_all_richesse$bathy <- -df_all_richesse$bathy
-df_all_richesse$dist_summ <- df_all_richesse$dist_summ/1000
-
-lm_trawl_depth <- lm(data = df_all_richesse,
-                     residuals ~ bathy  + dist_summ)
-summary(lm_trawl_depth)
 
 ##### classif 
 df_all <- df_all[df_all$scientific_name != "Pyrosoma_atlanticum", ]
@@ -293,27 +322,133 @@ trawl_sp_matrice <- reshape2::acast(data = df_all,
                                     fun.aggregate = mean)
 trawl_sp_matrice[is.na(trawl_sp_matrice)] <- 0
 dim(trawl_sp_matrice)
-library(vegan)
-trawl_sp_matrice_bray <- vegan::vegdist(trawl_sp_matrice, method="bray")
-
+# trawl_sp_matrice_bray <- vegan::vegdist(trawl_sp_matrice, method="bray")
 
 ########### try hellinger pca 
 trawl_sp_matrice_hell <- decostand(trawl_sp_matrice, method = 'hellinger')
+trawl_sp_matrice_dist <- dist(trawl_sp_matrice_hell)
 
-res_acp_taxo <- PCA(trawl_sp_matrice_hell, scale.unit = FALSE, 
-                    graph = FALSE)
+# res_acp_taxo <- PCA(trawl_sp_matrice_hell, scale.unit = FALSE, 
+#                     graph = FALSE)
+# 
+# df_pca <- as.data.frame( res_acp_taxo$ind$coord)
+# df_pca$set_no <- rownames(df_pca)
+# df_pca <- merge(df_all_richesse, df_pca)
+# 
+# ggplot(df_pca, aes(x = Dim.1, y = Dim.2, color = observed_depth_avg)) + 
+#   geom_hline(yintercept = 0, color = 'grey70') + 
+#   geom_vline(xintercept = 0, color = 'grey70') +
+#   geom_point() + 
+#   ylab("PC2 (12%)") +  xlab("PC1 (21%)") + theme_classic()   +
+#   theme(panel.background = element_rect(fill = 'white', color = 'black'),
+#         panel.grid.major = element_line(color = 'grey90')) 
 
-df_pca <- as.data.frame( res_acp_taxo$ind$coord)
-df_pca$set_no <- rownames(df_pca)
-df_pca <- merge(df_all_richesse, df_pca)
+############ clustering  
 
-ggplot(df_pca, aes(x = Dim.1, y = Dim.2, color = observed_depth_avg)) + 
-  geom_hline(yintercept = 0, color = 'grey70') + 
-  geom_vline(xintercept = 0, color = 'grey70') +
-  geom_point() + 
-  ylab("PC2 (12%)") +  xlab("PC1 (21%)") + theme_classic()   +
-  theme(panel.background = element_rect(fill = 'white', color = 'black'),
-        panel.grid.major = element_line(color = 'grey90')) 
+library(NbClust)
+NbClust(data = as.matrix(trawl_sp_matrice_hell), 
+        distance = 'euclidean', 
+        index = c("all"),
+        method = "complete")
+# Only frey, mcclain, cindex, sihouette and dunn can be computed.
+
+############ 
+hclust_avg <- stats::hclust((trawl_sp_matrice_dist), method = 'complete')
+plot(hclust_avg)
+cut_avg <- cutree(hclust_avg, k = 8)
+df_clus <- as.data.frame(cut_avg)
+df_clus$set_no <- rownames(df_clus)
+
+df_clus <- merge(df_clus, df_all_richesse)
+# ggplot(df_clus, aes(x = Axis.1, y = Axis.3, color = as.factor(clus) )) + 
+#   geom_hline(yintercept = 0, color = 'grey70') + 
+#   geom_vline(xintercept = 0, color = 'grey70') +
+#   geom_point() + 
+#   ylab("PC2 (12%)") +  xlab("PC1 (21%)") + theme_classic()   +
+#   theme(panel.background = element_rect(fill = 'white', color = 'black'),
+#         panel.grid.major = element_line(color = 'grey90')) 
+
+
+pl_R <- ggplot() +  stat_contour(data = df_bathy,
+                         aes(x = lon, y = lat, z = depth), color="grey60", size=0.25) +
+  xlab('') + ylab('') + 
+  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
+                     limits = c(167.8, 168.6)) +
+  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
+                     limits = c(-23.7, -22.7)) +
+  coord_equal() + theme_minimal() +
+  geom_point(data = df_clus, aes(x = Lon_SE, y = Lat_SE, color = as.factor(cut_avg   )   ),
+             size = 2) +
+  scale_color_manual(values = c("#000000", "#FFB300", "#56B4E9", "#00AE7E",
+                                 "#9E98C9", "#0072B2", "#FF7504", "#FB59FB"),
+                     name = 'Clusters') +
+  facet_grid( vertical_layer ~ day_night_id) 
+
+pl_R
+ggsave(filename ="D:/maracas/R_figures/N_species_chaluts_cluster.jpg",
+       width = 2.5, height = 2.5, 
+       scale = 3, plot= pl_R)
+
+
+
+df_clus <- as.data.frame(cut_avg)
+df_clus$set_no <- rownames(df_clus)
+
+df_all2 <- merge(df_all, df_clus)
+
+a = ggplot(df_all2[df_all2$cut_avg %in% c(2, 7), ],
+       aes(x = scientific_name, y = nb_ind_norm, color = as.factor(cut_avg) )) + 
+  geom_point() + coord_flip() + 
+  scale_color_manual(values = c("#FFB300", "#FF7504"),
+                     name = 'Clusters') +
+  facet_grid(phylum~cut_avg,  space = "free_y",scales = 'free')
+a
+ggsave(filename ="D:/maracas/R_figures/N_species_chaluts_cluster_composition_1.jpg",
+       width = 2.5, height = 4, 
+       scale = 3, plot= a)
+unique(df_all2$scientific_name)[order(unique(df_all2$scientific_name))]
+
+b = ggplot(df_all2[df_all2$cut_avg %ni% c(2, 7), ],
+           aes(x = scientific_name, y = nb_ind_norm, color = as.factor(cut_avg) )) + 
+  geom_point() + coord_flip() + 
+  scale_color_manual(values = c("#000000","#56B4E9",  "#00AE7E",
+                                "#9E98C9", "#0072B2", "#FB59FB"),
+                     name = 'Clusters') +
+  facet_grid(phylum~cut_avg,  space = "free_y",scales = 'free')
+b
+ggsave(filename ="D:/maracas/R_figures/N_species_chaluts_cluster_composition_2.jpg",
+       width = 2.5, height = 3, 
+       scale = 3, plot= b)
+unique(df_all2$scientific_name)[order(unique(df_all2$scientific_name))]
+
+df_smal_ass <- df_all2 %>% 
+  dplyr::group_by(cut_avg,  scientific_name) %>% 
+  dplyr::summarise(mean_abun = mean(nb_ind_norm )) %>% 
+  arrange(desc(mean_abun)) %>% 
+  dplyr::slice(1:10)
+dim(df_smal_ass)
+df_phyl  <- df_all2 %>% 
+  dplyr::group_by(phylum, scientific_name) %>% 
+  dplyr::summarise(mean_abun = mean(nb_ind_norm )) %>% 
+  dplyr::select(-mean_abun)
+df_smal_ass <- merge(df_smal_ass, df_phyl)
+
+df_smal_ass$scientific_name <- str_replace(df_smal_ass$scientific_name, "_", " ")
+c = ggplot(df_smal_ass, aes(x = scientific_name, y =mean_abun, 
+                            color = as.factor(cut_avg) )) + 
+  geom_segment(data = df_smal_ass, aes(x = scientific_name, y = 0.003,
+                                       xend = scientific_name, yend = mean_abun, 
+                                       color = as.factor(cut_avg) )) +
+  geom_point() + coord_flip() + 
+  scale_color_manual(values = c("#000000", "#FFB300", "#56B4E9", "#00AE7E",
+                                "#9E98C9", "#0072B2", "#FF7504", "#FB59FB"),
+                     name = 'Clusters') +
+  xlab('Scientific name') + ylab('Mean abundance') +
+  facet_grid(phylum ~ cut_avg,  space = "free_y",scales = 'free')
+c
+ggsave(filename ="D:/maracas/R_figures/N_species_chaluts_cluster_composition_3.jpg",
+       width = 3.5, height = 3, 
+       scale = 3, plot= c)
 
 ############ pcoa  
 
@@ -336,64 +471,3 @@ ggplot(df_pcoa, aes(x = Axis.1, y = Axis.2, color = observed_depth_avg)) +
   ylab("PC2 (12%)") +  xlab("PC1 (21%)") + theme_classic()   +
   theme(panel.background = element_rect(fill = 'white', color = 'black'),
         panel.grid.major = element_line(color = 'grey90')) 
-
-############ clustering  
-
-library(NbClust)
-NbClust(pcoa_bray$vectors[, 1:5], method = 'complete', index = 'all')$Best.nc
-
-
-############ 
-hclust_avg <- hclust((trawl_sp_matrice_hell), method = 'average')
-plot(hclust_avg)
-cut_avg <- cutree(hclust_avg, k = 6)
-df_clus <- as.data.frame(cut_avg)
-df_clus$set_no <- rownames(df_clus)
-
-hclust_avg <- kmeans((res_acp_taxo$ind$coord), 6)
-df_clus <- as.data.frame(hclust_avg$cluster)
-names(df_clus) <- 'clus'
-df_clus$set_no <- rownames(df_clus)
-
-
-df_clus <- merge(df_clus, df_pcoa)
-ggplot(df_clus, aes(x = Axis.1, y = Axis.3, color = as.factor(clus) )) + 
-  geom_hline(yintercept = 0, color = 'grey70') + 
-  geom_vline(xintercept = 0, color = 'grey70') +
-  geom_point() + 
-  ylab("PC2 (12%)") +  xlab("PC1 (21%)") + theme_classic()   +
-  theme(panel.background = element_rect(fill = 'white', color = 'black'),
-        panel.grid.major = element_line(color = 'grey90')) 
-
-
-pl_R <- ggplot() +  stat_contour(data = df_bathy,
-                         aes(x = lon, y = lat, z = depth), color="grey60", size=0.25) +
-  xlab('') + ylab('') + 
-  scale_x_continuous(breaks = seq(167.5, 168.6, 0.5),
-                     limits = c(167.8, 168.6)) +
-  scale_y_continuous(breaks = seq(-23.5, -22.7, 0.5),
-                     limits = c(-23.7, -22.7)) +
-  coord_equal() + theme_minimal() +
-  geom_point(data = df_clus, aes(x = Lon_SE, y = Lat_SE, color = as.factor(clus)   ),
-             size = 2) +
-  facet_grid( vertical_layer ~ day_night_id) 
-
-pl_R
-ggsave(filename ="D:/maracas/R_figures/N_species_chaluts_cluster.jpg",
-       width = 2.5, height = 2.5, 
-       scale = 3, plot= pl_R)
-
-df_clus <- as.data.frame(cut_avg)
-df_clus$set_no <- rownames(df_clus)
-
-df_all2 <- merge(df_all, df_clus)
-
-a = ggplot(df_all2,
-       aes(x = scientific_name, y = nb_ind_norm, color = as.factor(cut_avg) )) + 
-  geom_point() + coord_flip() + 
-  facet_grid(phylum~cut_avg,  space = "free_y",scales = 'free')
-a
-ggsave(filename ="D:/maracas/R_figures/N_species_chaluts_cluster_composition.jpg",
-       width = 2.5, height = 4, 
-       scale = 3, plot= a)
-unique(df_all2$scientific_name)[order(unique(df_all2$scientific_name))]
